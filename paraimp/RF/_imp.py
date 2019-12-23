@@ -18,6 +18,8 @@ class RFImputerProcessor(object):
         self.max_iter               = max_iter
         self.init_imp               = init_imp
         self.vart_                  = vart_
+        self.count_cat_mis          = None
+        self.coli                   = None
         self.vari                   = None
         self.misi                   = None
         self.obsi                   = None
@@ -30,8 +32,8 @@ class RFImputerProcessor(object):
 
     def check_converge(self):
         p = len(self.vart_)
-        numi        = [i for i in range(p) if self.vart_[i] == 1]
-        cati        = [i for i in range(p) if self.vart_[i] == 0]
+        numi        = [i for i in self.coli if self.vart_[i] == 1]
+        cati        = [i for i in self.coli if self.vart_[i] == 0]
         cur_diff    = [None, None]
         # difference of numerical
         if len(numi) > 0:
@@ -45,7 +47,7 @@ class RFImputerProcessor(object):
             X_old_cat       = self.previous_iter_matrix[:, cati]
             X_new_cat       = self.cur_iter_matrix[:, cati]
             num_differ      = np.sum(X_old_cat != X_new_cat)
-            num_mis         = sum([self.misi[i] for i in cati])
+            num_mis         = self.count_cat_mis
             cur_diff[1]     = num_differ / num_mis
         # skip if first iteration
         if self.previous_diff is None:
@@ -66,15 +68,24 @@ class RFImputerProcessor(object):
         Ximp = np.copy(Xmis)
         n, p = np.shape(Xmis)
 
+        count_cat_mis = 0
+        coli = np.arange(p)
         misn = [] # number of missing for each variable
         misi = [] # indices of missing samples for each variable
         obsi = [] # indices of observations for each variable
         for v in range(p):
             vt = self.vart_[v]
             col = Ximp[:, v]
-            var_misi = np.where(np.isnan(col))[0]
-            var_obsi = np.delete(np.arange(n), var_misi)
-            misn.append(len(var_misi))
+            var_misi, = np.where(np.isnan(col))
+            # TODO
+            #   skipping full column
+            if not var_misi.size:
+                coli = np.delete(coli, v)
+                continue
+            #
+            #
+            var_obsi    = np.delete(np.arange(n), var_misi)
+            misn.append(var_misi.size)
             misi.append(var_misi)
             obsi.append(var_obsi)
             if vt == 1: # numerical
@@ -84,11 +95,16 @@ class RFImputerProcessor(object):
                 if self.init_imp == InitialGuessOptions.ZERO.value:
                     Ximp[var_misi, v] = np.array([0 for _ in range(misn[-1])])
             else: # categorical
+                count_cat_mis += var_misi.size
                 if self.init_imp == InitialGuessOptions.MEAN.value:
                     var_mode = mode(col[var_obsi].tolist())
                     Ximp[var_misi, v] = np.array([var_mode for _ in range(misn[-1])])
         vari = np.argsort(misn).tolist()
+        coli = coli[vari]
+        print(coli)
         self.initial_guess_matrix = Ximp
+        self.count_cat_mis = count_cat_mis
+        self.coli = coli
         self.vari = vari
         self.misi = misi
         self.obsi = obsi
@@ -212,7 +228,7 @@ class RFImputerProcessorSlurm(RFImputerProcessor):
 
                     argument_path = self.handler.get_arguments_varidx_file(i, j)
                     result_path = self.handler.get_results_varidx_file(i, j)
-                    rf = RandomForest(self.params)
+                    rf = RandomForest(sevart_lf.params)
                     with open(argument_path, 'wb') as tmp:
                         argument_object = RFImputerProcessorSlurmArgumentObject(rf, cur_vart, cur_vari, cur_obsi, cur_misi)
                         pickle.dump(argument_object, tmp)

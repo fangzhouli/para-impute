@@ -15,13 +15,14 @@ def test_local_numerical():
         [1.5, nan, 2.0],
         [2.0, 1.0, nan]])
     imputer = RFImputer(parallel = 'local')
-
     try:
         Ximp_1 = imputer.impute(Xmis_1)
         Ximp_2 = imputer.impute(Xmis_2)
         print("Passed test_local_numerical")
-    except:
+        print(Ximp_1)
+    except Exception as e:
         print("Failed test_local_numerical")
+        print(e)
         exit()
 
 def test_local_categorical():
@@ -37,8 +38,9 @@ def test_local_categorical():
     try:
         Ximp = imputer.impute(Xmis, cat_var=[3, 4])
         print("Passed test_local_categorical")
-    except:
+    except Exception as e:
         print("Failed test_local_categorical")
+        print(e)
         exit()
 
 def test_slurm():
@@ -61,4 +63,4 @@ if __name__ == '__main__':
 
     test_local_numerical()
     test_local_categorical()
-    test_slurm()
+    # test_slurm()
